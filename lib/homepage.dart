@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:my_flutter_chatapp/logic/functions.dart';
 import 'chatpage.dart';
 import 'comps/styles.dart';
@@ -17,6 +20,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Functions.updateAvailability();
     super.initState();
   }
+  final firestore = FirebaseFirestore.instance;
   bool open  = false;
   @override
   Widget build(BuildContext context) {
@@ -72,11 +76,16 @@ class _MyHomePageState extends State<MyHomePage> {
                         Container(
                           margin: const EdgeInsets.symmetric(vertical: 10),
                           height: 80,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemBuilder: (context, i) {
-                              return ChatWidgets.circleProfile();
-                            },
+                          child: StreamBuilder(
+                            stream: firestore.collection('Rooms').snapshots(),
+                            builder: (context,AsyncSnapshot<QuerySnapshot> snapshot) {
+                              return ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemBuilder: (context, i) {
+                                  return ChatWidgets.circleProfile();
+                                },
+                              );
+                            }
                           ),
                         ),
                       ],
@@ -101,25 +110,41 @@ class _MyHomePageState extends State<MyHomePage> {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: ListView.builder(
-                              itemBuilder: (context, i) {
-                                return ChatWidgets.card(
-                                  title: 'John Doe',
-                                  subtitle: 'Hi, How are you !',
-                                  time: '04:40',
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) {
-                                          return const ChatPage(
-                                            id: '',
+                            child: StreamBuilder(
+                              stream: firestore.collection('Rooms').snapshots(),
+                              builder: (context,AsyncSnapshot<QuerySnapshot> snapshot) {
+                                List data = !snapshot.hasData? []: snapshot.data!.docs.where((element) => element['users'].toString().contains(
+                                    FirebaseAuth.instance.currentUser!.uid)).toList();
+                                return ListView.builder(
+                                  itemCount: data.length,
+                                  itemBuilder: (context, i) {
+                                    List users = data[i]['users'];
+                                    var friend = users.where((element) => element != FirebaseAuth.instance.currentUser!.uid);
+                                    var user = friend.isNotEmpty? friend.first: users.where((element) => element == FirebaseAuth.instance.currentUser!.uid).first;
+                                    return FutureBuilder(
+                                      future: firestore.collection('users').doc(user).get(),
+                                      builder: (context, AsyncSnapshot snap){
+                                      return !snap.hasData? Container(): ChatWidgets.card(
+                                        title: snap.data['name'],
+                                        subtitle: data[i]['last_message'],
+                                        time: DateFormat('hh:mm a').format(data[i]['last_message_time'].toDate()),
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (context) {
+                                                return  ChatPage(
+                                                  id: user,
+                                                );
+                                              },
+                                            ),
                                           );
                                         },
-                                      ),
+                                       );
+                                      }
                                     );
                                   },
                                 );
-                              },
+                              }
                             ),
                           ),
                         ),

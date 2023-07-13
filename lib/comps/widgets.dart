@@ -59,8 +59,7 @@ class ChatWidgets {
     );
   }
 
-  static Widget messagesCard(i, message, time) {
-    bool check = i % 2 == 0;
+  static Widget messagesCard(bool check, message, time) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
