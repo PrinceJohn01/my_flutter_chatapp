@@ -79,10 +79,30 @@ class _MyHomePageState extends State<MyHomePage> {
                           child: StreamBuilder(
                             stream: firestore.collection('Rooms').snapshots(),
                             builder: (context,AsyncSnapshot<QuerySnapshot> snapshot) {
+                              List data = !snapshot.hasData?[]: snapshot.data!.docs.where((
+                                  element) => element['users'].toString().contains(FirebaseAuth.instance.currentUser!.uid)).toList();
                               return ListView.builder(
                                 scrollDirection: Axis.horizontal,
+                                itemCount: data.length,
                                 itemBuilder: (context, i) {
-                                  return ChatWidgets.circleProfile();
+                                  List users = data[i]['users'];
+                                  var friend = users.where((element) => element != FirebaseAuth.instance.currentUser!.uid);
+                                  var user = friend.isNotEmpty? friend.first: users.where((element) => element == FirebaseAuth.instance.currentUser!.uid).first;
+                                  return FutureBuilder(
+                                    future: firestore.collection('Users').doc(user).get(),
+                                    builder: (context,AsyncSnapshot snap) {
+                                      return !snapshot.hasData? Container(): ChatWidgets.circleProfile(onTap: (){
+                                        Navigator.of(context).push(MaterialPageRoute(builder: (context){
+                                          return ChatPage(
+                                            id: user,
+                                            name: snap.data['name'],
+                                            );
+                                           },
+                                          ),
+                                         );
+                                      },name:snap.data['name']);
+                                      }
+                                  );
                                 },
                               );
                             }
@@ -134,6 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                               builder: (context) {
                                                 return  ChatPage(
                                                   id: user,
+                                                  name: snap.data['name'],
                                                 );
                                               },
                                             ),
